@@ -49,12 +49,11 @@ class RoffWalker(object):
     self._write_tail(root, ensure_newline=ensure_newline)
 
   def _write_tail(self, root, ensure_newline=False, inline=False):
-    if root.tail is not None:
-      if inline or root.tail != '\n':
-        text = self._sanitize(root.tail)
-        if text.endswith('\n'):
-          ensure_newline = False
-        self.__write_raw(text)
+    if root.tail is not None and (inline or root.tail != '\n'):
+      text = self._sanitize(root.tail)
+      if text.endswith('\n'):
+        ensure_newline = False
+      self.__write_raw(text)
     if ensure_newline:
       self.__write_raw('\n')
 
@@ -62,17 +61,17 @@ class RoffWalker(object):
     last_tag = None
     while root is not None:
       if root.tag == 'h1':
-        self.__write_cmd('.TH "JQ" "1" "{}" "" ""'.format(date.today().strftime('%B %Y')))
+        self.__write_cmd(f""".TH "JQ" "1" "{date.today().strftime('%B %Y')}" "" "\"""")
         self.__write_cmd('.SH "NAME"')
         # TODO: properly parse this
         self.__write_raw(r'\fBjq\fR \- Command\-line JSON processor' + "\n")
 
       elif root.tag == 'h2':
-        self.__write_cmd('.SH "{}"'.format(''.join(root.itertext()).strip()))
+        self.__write_cmd(f""".SH "{''.join(root.itertext()).strip()}\"""")
 
       elif root.tag == 'h3':
         text = ''.join(root.itertext()).strip()
-        self.__write_cmd('.SS "{}"'.format(self._h3_sanitize(text)))
+        self.__write_cmd(f'.SS "{self._h3_sanitize(text)}"')
 
       elif root.tag == 'p':
         if last_tag not in ['h2', 'h3'] and parent_tag not in ['li']:
@@ -85,10 +84,8 @@ class RoffWalker(object):
           self.__write_cmd('.TP')
           self._write_element(li)
           next = root.getnext()
-          while next is not None and next.tag == 'p':
-            if next.getnext() is not None and next.getnext().tag == 'pre':
-              # we don't want to .IP these, because it'll look funny with the code indent
-              break
+          while (next is not None and next.tag == 'p'
+                 and (next.getnext() is None or next.getnext().tag != 'pre')):
             self.__write_cmd('.IP')
             self._write_element(next)
             root = next
@@ -111,20 +108,20 @@ class RoffWalker(object):
       elif root.tag == 'strong':
         if root.text is not None:
           text = self._sanitize(root.text)
-          self.__write_raw('\\fB{}\\fR'.format(text))
+          self.__write_raw(f'\\fB{text}\\fR')
 
         self._write_tail(root, inline=True)
 
       elif root.tag == 'em':
         if root.text is not None:
           text = self._sanitize(root.text)
-          self.__write_raw('\\fI{}\\fR'.format(text))
+          self.__write_raw(f'\\fI{text}\\fR')
         self._write_tail(root, inline=True)
 
       elif root.tag == 'code':
         if root.text is not None:
           text = self._code_sanitize(root.text)
-          self.__write_raw('\\fB{}\\fR'.format(text))
+          self.__write_raw(f'\\fB{text}\\fR')
         self._write_tail(root, inline=True)
 
       elif root.tag == 'pre':
@@ -179,11 +176,9 @@ class RoffWalker(object):
 
   def __write_cmd(self, dat):
     print('.', dat, sep='\n', file=self.f)
-    pass
 
   def __write_raw(self, dat):
     print(dat, sep='', end='', file=self.f)
-    pass
 
 def load_yml_file(fn):
   with open(fn) as f:
@@ -199,11 +194,11 @@ def convert_manual_to_markdown():
   f.write(manual.get('manpage_intro', '\n'))
   f.write(dedent_body(manual.get('body', '\n')))
   for section in manual.get('sections', []):
-    f.write('## {}\n'.format(section.get('title', '').upper()))
+    f.write(f"## {section.get('title', '').upper()}\n")
     f.write(dedent_body(section.get('body', '\n')))
     f.write('\n')
     for entry in section.get('entries', []):
-      f.write('### {}\n'.format(entry.get('title', '')))
+      f.write(f"### {entry.get('title', '')}\n")
       f.write(dedent_body(entry.get('body', '\n')))
       f.write('\n')
       if entry.get('examples') is not None:
@@ -212,10 +207,10 @@ def convert_manual_to_markdown():
         for example in entry.get('examples'):
           if not first:
             f.write('\n')
-          f.write("jq '{}'\n".format(example.get('program', '')))
-          f.write("   {}\n".format(example.get('input', '')))
+          f.write(f"jq '{example.get('program', '')}'\n")
+          f.write(f"   {example.get('input', '')}\n")
           output = [str(x) for x in example.get('output', [])]
-          f.write("=> {}\n".format(', '.join(output)))
+          f.write(f"=> {', '.join(output)}\n")
           first = False
         f.write("~~~~\n")
     f.write('\n')
