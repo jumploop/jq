@@ -41,7 +41,7 @@ def generate_file(env, fname='content/1.tutorial/default.yml'):
     permalink = ''
   else:
     slug = os.path.basename(path)
-    permalink = path + '/'
+    permalink = f'{path}/'
 
   output_dir = os.path.join('output', path)
   output_path = os.path.join(output_dir, 'index.html')
